@@ -2,49 +2,58 @@ import numpy as np
 import random as rnd
 
 
-class SubDeviceModel():
+class SubDeviceModel:
     # lmbd - parameter of exponential distribution
-    # Q - expected, R - variance
-    def __init__(self, expected=None, variance=None):
-        if expected is not None:
-            self.expected = expected
-            self.lmbd = 1 / expected
-            self.variance = expected ** 2
-        elif variance is not None:
-            self.variance = variance
-            self.expected = np.sqrt(variance)
-            self.lmbd = 1 / self.expected
-        else:
-            raise ValueError("Необходимо задать либо Q, либо R.")
+    # Q - mean, R - variance
+    def __init__(self, mean=None, variance=None):
+        if mean is None or variance is None:
+            raise ValueError("Необходимо задать параметры.")
+        if variance < 0:
+            raise ValueError("Дисперсия не может принимать отрицательные значения.")
+        if (mean - variance ** 0.5) < 0:
+            raise ValueError("Смещение не может быть отрицательным.")
+        self.mean = mean
+        self.variance = variance
+        self.lmbd = 1 / (variance ** 0.5)
+        self.shift = mean - variance ** 0.5
 
-    def getRandVar(self):
-        return - np.log(1 - rnd.random()) / self.lmbd
+    def get_rand_var(self):
+        return self.shift - np.log(1 - rnd.random()) / self.lmbd
 
-    def getExpected(self):
-        return self.expected
-        # return 1 / self.lmbd
+    def get_mean(self):
+        return self.mean
 
-    def getVariance(self):
+    def get_variance(self):
         return self.variance
-        # return 1 / (self.lmbd**2)
 
 
-class Device():
-    # n - amount of subdevices
-    def __init__(self, n, expected=None, variance=None):
-        self.n = n
-        # Создаем экземпляр SubDeviceModel с заданным Q или R
-        self.sub_device_model = SubDeviceModel(expected=expected, variance=variance)
+class Device:
+    # sub_device_count - amount of subdevices
+    def __init__(self, sub_device_count=None, mean=None, variance=None):
+        if sub_device_count is None or mean is None or variance is None:
+            raise ValueError("Необходимо задать параметры.")
+        if sub_device_count <= 0:
+            raise ValueError("Количество приборов должно быть положительным числом.")
+        self.sub_device_count = sub_device_count
+        self.sub_device_model = SubDeviceModel(mean, variance)
 
-    def getRandVar(self):
+        # добавить ошибку
+
+    def get_rand_var(self):
         device_rand_var = 0
-        for _ in range(self.n):
-            device_rand_var += self.sub_device_model.getRandVar()
+        for _ in range(self.sub_device_count):
+            device_rand_var += self.sub_device_model.get_rand_var()
         return device_rand_var
 
-    def RandomDraw(self, k):
+    def random_draw(self, k):
         device_rand_vars = []
         for _ in range(k):
-            device_rand_vars.append(self.getRandVar())
+            device_rand_vars.append(self.get_rand_var())
         device_rand_vars.sort()
         return device_rand_vars
+
+    def get_mean(self):
+        return self.sub_device_model.get_mean() * self.sub_device_count
+
+    def get_variance(self):
+        return self.sub_device_model.get_variance() * self.sub_device_count
