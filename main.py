@@ -224,21 +224,20 @@ class Ui_MainWindow(object):
 
             mean_theoretical = device_instance.get_mean()
             variance_theoretical = device_instance.get_variance()
-            std_dev_sample = variance_sample ** 0.5
             std_dev_theoretical = variance_theoretical ** 0.5
 
             # --- Графики и расхождение D ---
 
             # Выборочная функция распределения Fn^
-            x_values = draw
-            y_values = [sum(1 for r in draw if r <= x) / len(draw) for x in x_values]
+            x_values_sample = draw
+            y_values_sample = [sum(1 for r in draw if r <= x) / len(draw) for x in x_values_sample]
 
             # Теоретическая функция распределения Fn
-            x_theoretical = np.linspace(min(draw), max(draw), 100)  # 100 точек для графика
+            x_theoretical = np.linspace(min(draw), max(draw), 100)
             y_theoretical = norm.cdf(x_theoretical, loc=mean_theoretical, scale=std_dev_theoretical)
 
             plt.figure(figsize=(8, 6))
-            plt.step(x_values, y_values, where='post', label='Выборочная функция')
+            plt.step(x_values_sample, y_values_sample, where='post', label='Выборочная функция')
             plt.plot(x_theoretical, y_theoretical, label='Теоретическая функция')
             plt.xlabel('Значение x')
             plt.ylabel('Вероятность P')
@@ -247,21 +246,19 @@ class Ui_MainWindow(object):
             plt.grid(True)
 
             # Расхождение D (по теореме Гливенко-Кантелли)
-            x_values = sorted(list(set(draw)))
-            y_values_empirical = [sum(1 for r in draw if r <= x) / len(draw) for x in x_values]
-            y_values_theoretical = norm.cdf(x_values, loc=mean_theoretical, scale=std_dev_theoretical)
-            d = max(abs(y_t - y_e) for y_t, y_e in zip(y_values_theoretical, y_values_empirical))
+            y_values_theoretical = norm.cdf(x_values_sample, loc=mean_theoretical, scale=std_dev_theoretical)
+            d = max(abs(y_t - y_s) for y_t, y_s in zip(y_values_theoretical, y_values_sample))
 
             # --- Создание словаря характеристик ---
             characteristics = {
-                "Eη (выборочное)": mean_sample,
-                "Dη (выборочное)": variance_sample,
-                "Sη (выборочное)": std_dev_sample,
-                "Me (выборочное)": median,
-                "R (выборочное)": range_val,
-                "Eη (теоретическое)": mean_theoretical,
-                "Dη (теоретическое)": variance_theoretical,
-                "Sη (теоретическое)": std_dev_theoretical,
+                "Eη": mean_theoretical,                                    # теоретическое среднее
+                "x_": mean_sample,                                         # выборочное среднее
+                "S^2": variance_sample,                                    # выборочная дисперсия
+                "|Eη - x|": abs(mean_theoretical - mean_sample),           # отклонение от среднего
+                "Dη": variance_theoretical,                                # теоретическая дисперсия
+                "|Dη - S^2|": abs(variance_theoretical - variance_sample), # отклонение от дисперсии
+                "Me": median,                                              # медиана
+                "R": range_val,                                            # размах
                 "D": d
             }
 
