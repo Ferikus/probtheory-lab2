@@ -221,9 +221,9 @@
    <widget class="QPushButton" name="btn_1">
     <property name="geometry">
      <rect>
-      <x>180</x>
+      <x>170</x>
       <y>410</y>
-      <width>431</width>
+      <width>451</width>
       <height>41</height>
      </rect>
     </property>
@@ -231,30 +231,43 @@
      <string>1. Моделирование случайных величин</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="btn_2">
+   <widget class="QPushButton" name="btn_2_1">
     <property name="geometry">
      <rect>
-      <x>180</x>
+      <x>170</x>
       <y>460</y>
-      <width>431</width>
+      <width>241</width>
       <height>41</height>
      </rect>
     </property>
     <property name="text">
-     <string>2. ...</string>
+     <string>2.1. Статистические характеристики</string>
     </property>
    </widget>
    <widget class="QPushButton" name="btn_3">
     <property name="geometry">
      <rect>
-      <x>180</x>
+      <x>170</x>
       <y>510</y>
-      <width>431</width>
+      <width>451</width>
       <height>41</height>
      </rect>
     </property>
     <property name="text">
      <string>3. ...</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="btn_2_2">
+    <property name="geometry">
+     <rect>
+      <x>420</x>
+      <y>460</y>
+      <width>201</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>2.2. Таблица промежутков</string>
     </property>
    </widget>
   </widget>

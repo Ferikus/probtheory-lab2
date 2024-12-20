@@ -13,70 +13,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import norm
 
-import device
-from stat_properties import *
-
-
-class ResultWindowN1(QtWidgets.QWidget):
-    def __init__(self, results):
-        super().__init__()
-        self.setWindowTitle("Результаты розыгрыша")
-        self.setGeometry(100, 100, 600, 100)
-
-        layout = QtWidgets.QVBoxLayout(self)
-
-        self.table = QtWidgets.QTableWidget(self)
-        self.table.setRowCount(1)
-        self.table.setColumnCount(len(results))
-        self.table.setHorizontalHeaderLabels([f"x({i + 1})" for i in range(len(results))])
-
-        for i, value in enumerate(results):
-            self.table.setItem(0, i, QtWidgets.QTableWidgetItem(f"{value:.4f}"))
-
-        layout.addWidget(self.table)
-        self.setLayout(layout)
-
-
-class ResultWindowN2(QtWidgets.QWidget):
-    def __init__(self, results, characteristics):
-        super().__init__()
-        self.setWindowTitle("Статистические характеристики")
-        self.setGeometry(100, 100, 1000, 200)
-
-        layout = QtWidgets.QVBoxLayout(self)
-
-        # --- Таблица для результатов розыгрыша ---
-        draw_table = QtWidgets.QTableWidget(self)
-        draw_table.setRowCount(1)
-        draw_table.setColumnCount(len(results))
-        draw_table.setHorizontalHeaderLabels([f"x({i + 1})" for i in range(len(results))])
-
-        for i, value in enumerate(results):
-            draw_table.setItem(0, i, QtWidgets.QTableWidgetItem(f"{value:.4f}"))
-
-        layout.addWidget(draw_table)
-
-        # --- Таблица для характеристик ---
-        characteristics_table = QtWidgets.QTableWidget(self)
-        characteristics_table.setRowCount(1)
-        characteristics_table.setColumnCount(len(characteristics) - 1)
-        headers = list(characteristics.keys())
-        headers.remove("D")
-        characteristics_table.setHorizontalHeaderLabels(headers)
-
-        for i, (name, value) in enumerate(characteristics.items()):
-            if name != "D": # Пропускаем D
-                characteristics_table.setItem(0, i, QtWidgets.QTableWidgetItem(f"{value:.4f}"))
-
-        characteristics_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
-        layout.addWidget(characteristics_table)
-
-        # ---  Label для D ---
-        d_label = QtWidgets.QLabel(self)
-        d_label.setText(f"<p>Расхождение D: {characteristics['D']:.4f}</p>")
-        layout.addWidget(d_label)
-
-        self.setLayout(layout)
+import src.device as device
+from src.stat_properties import *
+from src.result_windows import *
 
 
 class Ui_MainWindow(object):
@@ -149,13 +88,16 @@ class Ui_MainWindow(object):
         self.lineEdit_experiments_count.setGeometry(QtCore.QRect(560, 60, 113, 20))
         self.lineEdit_experiments_count.setObjectName("lineEdit_experiments_count")
         self.btn_1 = QtWidgets.QPushButton(self.centralwidget)
-        self.btn_1.setGeometry(QtCore.QRect(180, 410, 431, 41))
+        self.btn_1.setGeometry(QtCore.QRect(170, 410, 451, 41))
         self.btn_1.setObjectName("btn_1")
-        self.btn_2 = QtWidgets.QPushButton(self.centralwidget)
-        self.btn_2.setGeometry(QtCore.QRect(180, 460, 431, 41))
-        self.btn_2.setObjectName("btn_2")
+        self.btn_2_1 = QtWidgets.QPushButton(self.centralwidget)
+        self.btn_2_1.setGeometry(QtCore.QRect(170, 460, 241, 41))
+        self.btn_2_1.setObjectName("btn_2_1")
+        self.btn_2_2 = QtWidgets.QPushButton(self.centralwidget)
+        self.btn_2_2.setGeometry(QtCore.QRect(420, 460, 201, 41))
+        self.btn_2_2.setObjectName("btn_2_2")
         self.btn_3 = QtWidgets.QPushButton(self.centralwidget)
-        self.btn_3.setGeometry(QtCore.QRect(180, 510, 431, 41))
+        self.btn_3.setGeometry(QtCore.QRect(170, 510, 451, 41))
         self.btn_3.setObjectName("btn_3")
         MainWindow.setCentralWidget(self.centralwidget)
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
@@ -167,7 +109,39 @@ class Ui_MainWindow(object):
 
         # обработка событий
         self.btn_1.clicked.connect(self.n1_simulate_random_variables)
-        self.btn_2.clicked.connect(self.n2_statistical_properties)
+        self.btn_2_1.clicked.connect(self.n2_statistical_properties)
+        self.btn_2_2.clicked.connect(self.n2_intervals_table)
+        self.btn_3.clicked.connect(self.n3_hypothesis_testing)
+
+    def retranslateUi(self, MainWindow):
+        _translate = QtCore.QCoreApplication.translate
+        MainWindow.setWindowTitle(_translate("MainWindow", "Теория вероятности. Л/Р №2."))
+        self.label.setText(_translate("MainWindow",
+                                      "Устройство состоит из N>>1 дублирующих приборов. "
+                                      "Каждый следующий прибор включается после выхода из строя предыдущего. "
+                                      "Время безотказной работы каждого прибора — положительная с.в. "
+                                      "со средним Q и дисперсией R. Плотность распределения выбрать "
+                                      "по аналогии с приведёнными на рисунках на с. 15. С.в. η — время "
+                                      "безотказной работы всего устройства."))
+        self.label_title.setText(_translate("MainWindow", "Лабораторная работа №2.\n"
+                                                          "Моделирование случайных величин\n"
+                                                          "и проверка гипотез о виде распределения."))
+        self.label_formula.setText(_translate("MainWindow", "Функция плотности прибора — экспоненциальная."))
+        self.label_var.setText(_translate("MainWindow", "Вариант 18"))
+        self.paramBox.setTitle(_translate("MainWindow", "Ввод параметров"))
+        self.label_experiments_count.setText(_translate("MainWindow", "Количество экспериментов"))
+        self.label_variance.setText(_translate("MainWindow", "Дисперсия R"))
+        self.label_subdevice_count.setText(_translate("MainWindow", "Количество приборов N"))
+        self.label_mean.setText(_translate("MainWindow", "Среднее Q"))
+        self.btn_1.setText(_translate("MainWindow", "1. Моделирование случайных величин"))
+        self.btn_2_1.setText(_translate("MainWindow", "2.1. Статистические характеристики"))
+        self.btn_2_2.setText(_translate("MainWindow", "2.2. Таблица промежутков"))
+        self.btn_3.setText(_translate("MainWindow", "3. Проверка гипотезы о виде распределения"))
+
+        self.lineEdit_mean.setText("4")
+        self.lineEdit_variance.setText("1")
+        self.lineEdit_subdevice_count.setText("5")
+        self.lineEdit_experiments_count.setText("5")
 
     def n1_simulate_random_variables(self):
         try:
@@ -187,26 +161,6 @@ class Ui_MainWindow(object):
 
     def n2_statistical_properties(self):
         try:
-            # k, ok = QtWidgets.QInputDialog.getInt(self, "Количество интервалов", "Введите k:", 3, 1, 100)  # Диалог для ввода k
-            # if not ok:
-            #     return
-            #
-            # intervals = []
-            # for i in range(k):
-            #     lower_bound, ok = QtWidgets.QInputDialog.getDouble(self, f"Интервал {i+1}", "Нижняя граница:", 0, -1000, 1000)
-            #     if not ok:
-            #         return
-            #
-            #     upper_bound, ok = QtWidgets.QInputDialog.getDouble(self, f"Интервал {i+1}", "Верхняя граница:", 1, -1000, 1000)
-            #
-            #     if not ok:
-            #         return
-            #     if lower_bound >= upper_bound:
-            #         QtWidgets.QMessageBox.warning(self, "Ошибка", "Нижняя граница должна быть меньше верхней.")
-            #         return
-            #
-            #     intervals.append((lower_bound, upper_bound))
-
             sub_device_count = int(self.lineEdit_subdevice_count.text())
             expected = float(self.lineEdit_mean.text())
             variance = float(self.lineEdit_variance.text())
@@ -229,20 +183,25 @@ class Ui_MainWindow(object):
             # --- Графики и расхождение D ---
 
             # Выборочная функция распределения Fn^
-            x_values_sample = draw
+            extension = 5.
+            x_values_sample = [0.] + draw
             y_values_sample = [sum(1 for r in draw if r <= x) / len(draw) for x in x_values_sample]
+            x_values_sample.append(draw[-1] + extension)
+            y_values_sample.append(1.0)
 
             # Теоретическая функция распределения Fn
-            x_theoretical = np.linspace(min(draw), max(draw), 100)
+            # x_theoretical = np.linspace(min(draw), max(draw), 100)
+            x_theoretical = np.linspace(draw[0] - extension, max(draw) + extension, 100)
             y_theoretical = norm.cdf(x_theoretical, loc=mean_theoretical, scale=std_dev_theoretical)
 
             plt.figure(figsize=(8, 6))
             plt.step(x_values_sample, y_values_sample, where='post', label='Выборочная функция')
             plt.plot(x_theoretical, y_theoretical, label='Теоретическая функция')
+            plt.xlim(draw[0] - extension, draw[-1] + extension)
+            plt.ylim(-0.05, 1.05)
             plt.xlabel('Значение x')
             plt.ylabel('Вероятность P')
             plt.title('Функции распределения')
-            plt.legend()
             plt.grid(True)
 
             # Расхождение D (по теореме Гливенко-Кантелли)
@@ -251,19 +210,18 @@ class Ui_MainWindow(object):
 
             # --- Создание словаря характеристик ---
             characteristics = {
-                "Eη": mean_theoretical,                                    # теоретическое среднее
-                "x_": mean_sample,                                         # выборочное среднее
-                "S^2": variance_sample,                                    # выборочная дисперсия
-                "|Eη - x|": abs(mean_theoretical - mean_sample),           # отклонение от среднего
-                "Dη": variance_theoretical,                                # теоретическая дисперсия
-                "|Dη - S^2|": abs(variance_theoretical - variance_sample), # отклонение от дисперсии
-                "Me": median,                                              # медиана
-                "R": range_val,                                            # размах
-                "D": d
+                "Eη": mean_theoretical,                                     # теоретическое среднее
+                "x_": mean_sample,                                          # выборочное среднее
+                "S^2": variance_sample,                                     # выборочная дисперсия
+                "|Eη - x|": abs(mean_theoretical - mean_sample),            # отклонение от среднего
+                "Dη": variance_theoretical,                                 # теоретическая дисперсия
+                "|Dη - S^2|": abs(variance_theoretical - variance_sample),  # отклонение от дисперсии
+                "Me": median,                                               # медиана
+                "R": range_val,                                             # размах
             }
 
             # --- Создание и отображение таблицы результатов ---
-            self.result_window = ResultWindowN2(draw, characteristics)
+            self.result_window = ResultWindowN2(draw, characteristics, d)
             self.result_window.show()
 
             plt.show()
@@ -271,29 +229,80 @@ class Ui_MainWindow(object):
         except Exception as e:
             QtWidgets.QMessageBox.critical(None, "Ошибка", str(e))
 
-    def retranslateUi(self, MainWindow):
-        _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "Теория вероятности. Л/Р №2."))
-        self.label.setText(_translate("MainWindow",
-                                      "Устройство состоит из N>>1 дублирующих приборов. "
-                                      "Каждый следующий прибор включается после выхода из строя предыдущего. "
-                                      "Время безотказной работы каждого прибора — положительная с.в. "
-                                      "со средним Q и дисперсией R. Плотность распределения выбрать "
-                                      "по аналогии с приведёнными на рисунках на с. 15. С.в. η — время "
-                                      "безотказной работы всего устройства."))
-        self.label_title.setText(_translate("MainWindow", "Лабораторная работа №2.\n"
-                                                          "Моделирование случайных величин\n"
-                                                          "и проверка гипотез о виде распределения."))
-        self.label_formula.setText(_translate("MainWindow", "Функция плотности — экспоненциальная."))
-        self.label_var.setText(_translate("MainWindow", "Вариант 18"))
-        self.paramBox.setTitle(_translate("MainWindow", "Ввод параметров"))
-        self.label_experiments_count.setText(_translate("MainWindow", "Количество экспериментов"))
-        self.label_variance.setText(_translate("MainWindow", "Дисперсия R"))
-        self.label_subdevice_count.setText(_translate("MainWindow", "Количество приборов N"))
-        self.label_mean.setText(_translate("MainWindow", "Среднее Q"))
-        self.btn_1.setText(_translate("MainWindow", "1. Моделирование случайных величин"))
-        self.btn_2.setText(_translate("MainWindow", "2. Статистические характеристики случайных величин"))
-        self.btn_3.setText(_translate("MainWindow", "3. ..."))
+    def n2_intervals_table(self):
+        try:
+            # --- Get necessary parameters from GUI ---
+            sub_device_count = int(self.lineEdit_subdevice_count.text())
+            expected = float(self.lineEdit_mean.text())
+            variance = float(self.lineEdit_variance.text())
+            experiments_count = int(self.lineEdit_experiments_count.text())
+
+            device_instance = device.Device(sub_device_count, expected, variance)
+            draw = device_instance.random_draw(experiments_count)
+            mean_theoretical = device_instance.get_mean()
+            variance_theoretical = device_instance.get_variance()
+            std_dev_theoretical = variance_theoretical ** 0.5
+
+            # Ввод количества интервалов
+            k, ok = QtWidgets.QInputDialog.getInt(MainWindow, "Ввод интервалов", f"Введите количество интервалов:")
+            if not ok:
+                raise ValueError("Ввод интервалов отменен.")
+
+            interval_bounds = [0.]
+            # interval_bounds = []
+
+            # Ввод интервалов пользователем
+            # for i in range(k):
+            #     bound, ok = QtWidgets.QInputDialog.getDouble(MainWindow, "Ввод интервалов", f"Введите границу интервала {i}:")
+            #     if not ok:
+            #         raise ValueError("Ввод интервалов отменен.")
+            #     interval_bounds.append(bound)
+
+            # Автоматическое заполнение равномерными интервалами
+            interval_len = (draw[-1] - draw[0]) / k
+            for i in range(k):
+                interval_bounds.append(draw[0] + i * interval_len)
+
+            z_values = []
+            heights = []
+            theoretical_densities = []
+
+            for j in range(k):
+                n = sum(1 for x in draw if interval_bounds[j] <= x < interval_bounds[j + 1])
+                height = n / (experiments_count * (interval_bounds[j + 1] - interval_bounds[j]))
+                heights.append(height)
+
+                z = (interval_bounds[j] + interval_bounds[j + 1]) / 2
+                z_values.append(z)
+                theoretical_density = norm.pdf(z, loc=mean_theoretical, scale=std_dev_theoretical)
+                theoretical_densities.append(theoretical_density)
+
+            max_height = max(heights)
+
+            # --- Словарь для таблицы ---
+            table_info = {
+                "z_k": z_values,                    # средняя точка интервала z
+                "f_η(z_k)": theoretical_densities,  # значение ф-ции плотности в точке z
+                "n_k / (n * delta'_k )": heights,   # высота прямоугольника гистограммы
+            }
+
+            self.result_window = ResultWindowN2_2(table_info, interval_bounds, max_height)
+            self.result_window.show()
+
+            # --- Гистограмма ---
+            plt.figure(figsize=(8, 6))
+            plt.bar(interval_bounds[1:], heights, width=interval_len, align='center', edgecolor='black')
+            plt.xlabel('Значение x')
+            plt.ylabel('Плотность вероятности fη')
+            plt.title('Гистограмма распределения')
+            plt.grid(True)
+            plt.show()
+
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(None, "Ошибка", str(e))
+
+    def n3_hypothesis_testing(self):
+        pass
 
 
 if __name__ == "__main__":
