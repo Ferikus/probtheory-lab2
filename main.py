@@ -12,6 +12,7 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import norm
+from scipy.stats import chi2
 
 import src.device as device
 from src.stat_properties import *
@@ -302,7 +303,55 @@ class Ui_MainWindow(object):
             QtWidgets.QMessageBox.critical(None, "Ошибка", str(e))
 
     def n3_hypothesis_testing(self):
-        pass
+        try:
+            sub_device_count = int(self.lineEdit_subdevice_count.text())
+            expected = float(self.lineEdit_mean.text())
+            variance = float(self.lineEdit_variance.text())
+            experiments_count = int(self.lineEdit_experiments_count.text())
+
+            device_instance = device.Device(sub_device_count, expected, variance)
+            draw = device_instance.random_draw(experiments_count)
+
+            mean_theoretical = device_instance.get_mean()
+            variance_theoretical = device_instance.get_variance()
+            std_dev_theoretical = variance_theoretical ** 0.5
+
+            k, ok = QtWidgets.QInputDialog.getInt(MainWindow, "Ввод интервалов", f"Введите количество интервалов:")
+            if not ok:
+                raise ValueError("Ввод интервалов отменен.")
+
+            interval_bounds = [0.]
+            interval_len = (draw[-1] - draw[0]) / k
+            for i in range(k):
+                interval_bounds.append(draw[0] + i * interval_len)
+
+            n_values = []
+            q_values = []
+
+            for j in range(k):
+                n = sum(1 for x in draw if interval_bounds[j] <= x < interval_bounds[j + 1])
+                n_values.append(n)
+
+                q = norm.cdf(interval_bounds[j + 1], loc=mean_theoretical, scale=std_dev_theoretical) - \
+                    norm.cdf(interval_bounds[j], loc=mean_theoretical, scale=std_dev_theoretical)
+                q_values.append(q)
+
+            alpha, ok = QtWidgets.QInputDialog.getDouble(MainWindow, "Ввод уровня значимости",
+                                                         "Введите уровень значимости (alpha):", 0.05, 0.01, 0.99, 2)
+            if not ok:
+                raise ValueError("Ввод уровня значимости отменен.")
+
+            chi2_critical = chi2.isf(alpha, k - 1)
+
+            r0 = sum([(n_values[j] - experiments_count * q_values[j]) ** 2 / (experiments_count * q_values[j]) for j in
+                      range(k)])
+            decision = "Гипотеза H0 принимается" if r0 < chi2_critical else "Гипотеза H0 отклоняется"
+
+            self.result_window = ResultWindowN3(r0, chi2_critical, k - 1, alpha, decision)
+            self.result_window.show()
+
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(None, "Ошибка", str(e))
 
 
 if __name__ == "__main__":

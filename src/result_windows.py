@@ -97,3 +97,26 @@ class ResultWindowN2_2(QtWidgets.QWidget):
         layout.addWidget(max_height_label)
 
         self.setLayout(layout)
+
+
+class ResultWindowN3(QtWidgets.QWidget):
+    def __init__(self, r0, chi2_critical, df, alpha, decision):
+        super().__init__()
+        self.setWindowTitle("Проверка гипотезы")
+        self.setGeometry(100, 100, 400, 150)
+
+        layout = QtWidgets.QVBoxLayout(self)
+
+        self.r0_label = QtWidgets.QLabel(self)
+        self.r0_label.setText(f"Значение статистики R0: {r0:.4f}")
+        layout.addWidget(self.r0_label)
+
+        self.chi2_label = QtWidgets.QLabel(self)
+        self.chi2_label.setText(f"Критическое значение χ²({df}, {alpha:.2f}): {chi2_critical:.4f}")
+        layout.addWidget(self.chi2_label)
+
+        self.decision_label = QtWidgets.QLabel(self)
+        self.decision_label.setText(f"Решение: {decision}")
+        layout.addWidget(self.decision_label)
+
+        self.setLayout(layout)
