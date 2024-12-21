@@ -185,20 +185,26 @@ class Ui_MainWindow(object):
 
             # Выборочная функция распределения Fn^
             extension = 5.
-            x_values_sample = [0.] + draw
+
+            xmin = mean_theoretical - 3 * std_dev_theoretical
+            xmax = mean_theoretical + 3 * std_dev_theoretical
+
+            # x_values_sample = [0.] + draw
+            x_values_sample = [xmin] + draw
             y_values_sample = [sum(1 for r in draw if r <= x) / len(draw) for x in x_values_sample]
-            x_values_sample.append(draw[-1] + extension)
+            # x_values_sample.append(draw[-1] + extension)
+            x_values_sample.append(xmax)
             y_values_sample.append(1.0)
 
             # Теоретическая функция распределения Fn
             # x_theoretical = np.linspace(min(draw), max(draw), 100)
-            x_theoretical = np.linspace(draw[0] - extension, max(draw) + extension, 100)
+            x_theoretical = np.linspace(xmin, xmax, 100)
             y_theoretical = norm.cdf(x_theoretical, loc=mean_theoretical, scale=std_dev_theoretical)
 
             plt.figure(figsize=(8, 6))
             plt.step(x_values_sample, y_values_sample, where='post', label='Выборочная функция')
             plt.plot(x_theoretical, y_theoretical, label='Теоретическая функция')
-            plt.xlim(draw[0] - extension, draw[-1] + extension)
+            plt.xlim(xmin, xmax)
             plt.ylim(-0.05, 1.05)
             plt.xlabel('Значение x')
             plt.ylabel('Вероятность P')
@@ -207,7 +213,12 @@ class Ui_MainWindow(object):
 
             # Расхождение D (по теореме Гливенко-Кантелли)
             y_values_theoretical = norm.cdf(x_values_sample, loc=mean_theoretical, scale=std_dev_theoretical)
-            d = max(abs(y_t - y_s) for y_t, y_s in zip(y_values_theoretical, y_values_sample))
+            # d = max(abs(y_t - y_s) for y_t, y_s in zip(y_values_theoretical, y_values_sample))
+            for i in range(len(draw)):
+                d = max(abs((norm.cdf(draw[i], loc=mean_theoretical, scale=std_dev_theoretical) - i / experiments_count)),
+                        abs((norm.cdf(draw[i], loc=mean_theoretical, scale=std_dev_theoretical) - (i + 1) / experiments_count)))
+                print(x_values_sample[i], y_values_sample[i], y_values_sample[i+1])
+            # print(*zip(y_values_theoretical, y_values_sample))
 
             # --- Создание словаря характеристик ---
             characteristics = {
@@ -316,6 +327,9 @@ class Ui_MainWindow(object):
             variance_theoretical = device_instance.get_variance()
             std_dev_theoretical = variance_theoretical ** 0.5
 
+            accepted_count = 0
+            rejected_count = 0
+
             k, ok = QtWidgets.QInputDialog.getInt(MainWindow, "Ввод интервалов", f"Введите количество интервалов:")
             if not ok:
                 raise ValueError("Ввод интервалов отменен.")
@@ -325,29 +339,49 @@ class Ui_MainWindow(object):
             for i in range(k):
                 interval_bounds.append(draw[0] + i * interval_len)
 
-            n_values = []
-            q_values = []
-
-            for j in range(k):
-                n = sum(1 for x in draw if interval_bounds[j] <= x < interval_bounds[j + 1])
-                n_values.append(n)
-
-                q = norm.cdf(interval_bounds[j + 1], loc=mean_theoretical, scale=std_dev_theoretical) - \
-                    norm.cdf(interval_bounds[j], loc=mean_theoretical, scale=std_dev_theoretical)
-                q_values.append(q)
+            hypothesis_count, ok = QtWidgets.QInputDialog.getInt(MainWindow, "Ввод числа проверок",
+                                                                 f"Введите число проверок гипотезы:")
+            if not ok:
+                raise ValueError("Ввод числа проверок отменен.")
 
             alpha, ok = QtWidgets.QInputDialog.getDouble(MainWindow, "Ввод уровня значимости",
-                                                         "Введите уровень значимости (alpha):", 0.05, 0.01, 0.99, 2)
+                                                         "Введите уровень значимости (alpha):", decimals=2)
             if not ok:
                 raise ValueError("Ввод уровня значимости отменен.")
 
-            chi2_critical = chi2.isf(alpha, k - 1)
+            for i in range(hypothesis_count):
+                # n_values = []
+                # q_values = []
+                r0 = 0
 
-            r0 = sum([(n_values[j] - experiments_count * q_values[j]) ** 2 / (experiments_count * q_values[j]) for j in
-                      range(k)])
-            decision = "Гипотеза H0 принимается" if r0 < chi2_critical else "Гипотеза H0 отклоняется"
+                for j in range(k):
+                    n = sum(1 for x in draw if interval_bounds[j] <= x < interval_bounds[j + 1])
 
-            self.result_window = ResultWindowN3(r0, chi2_critical, k - 1, alpha, decision)
+                    q = norm.cdf(interval_bounds[j + 1], loc=mean_theoretical, scale=std_dev_theoretical) - \
+                        norm.cdf(interval_bounds[j], loc=mean_theoretical, scale=std_dev_theoretical)
+
+                    r0 += (n - experiments_count * q) ** 2 / (experiments_count * q)
+
+                p_value = 1 - chi2.cdf(r0, k - 1)
+
+                if p_value < alpha:
+                    print("Гипотеза H0 принимается")
+                    accepted_count += 1
+                else:
+                    print("Гипотеза H0 отклоняется")
+                    rejected_count += 1
+
+                # r0 - chi2_statistuc
+                # chi2_statistic = np.sum((hist_values - expected_frequencies) ** 2 / expected_frequencies)
+                # degrees_of_freedom = num_intervals - 1  # k - p - 1
+                # p_value = 1 - st.chi2.cdf(chi2_statistic, degrees_of_freedom)
+                #
+                # if p_value <= alpha:
+                #     message = "Гипотеза отвергается"  # Reject the null hypothesis
+                # else:
+                #     message = "Гипотеза не отвергается"  # Fail to reject the null hypothesis
+
+            self.result_window = ResultWindowN3(accepted_count, rejected_count)
             self.result_window.show()
 
         except Exception as e:
