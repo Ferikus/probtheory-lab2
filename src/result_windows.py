@@ -100,55 +100,77 @@ class ResultWindowN2_2(QtWidgets.QWidget):
 
 
 # class ResultWindowN3(QtWidgets.QWidget):
-#     def __init__(self, r0, chi2_critical, df, alpha, decision):
+#     def __init__(self, accepted_count, rejected_count):
 #         super().__init__()
 #         self.setWindowTitle("Проверка гипотезы")
-#         self.setGeometry(100, 100, 400, 150)
+#         self.setGeometry(100, 100, 400, 300)
 #
 #         layout = QtWidgets.QVBoxLayout(self)
 #
-#         self.r0_label = QtWidgets.QLabel(self)
-#         self.r0_label.setText(f"Значение статистики R0: {r0:.4f}")
-#         layout.addWidget(self.r0_label)
+#         # self.r0_label = QtWidgets.QLabel(self)
+#         # self.r0_label.setText(f"Значение статистики R0: {r0:.4f}")
+#         # layout.addWidget(self.r0_label)
+#         #
+#         # self.chi2_label = QtWidgets.QLabel(self)
+#         # self.chi2_label.setText(f"Критическое значение χ²({df}, {alpha:.2f}): {chi2_critical:.4f}")
+#         # layout.addWidget(self.chi2_label)
 #
-#         self.chi2_label = QtWidgets.QLabel(self)
-#         self.chi2_label.setText(f"Критическое значение χ²({df}, {alpha:.2f}): {chi2_critical:.4f}")
-#         layout.addWidget(self.chi2_label)
+#         self.table_widget = QtWidgets.QTableWidget(self)
+#         self.table_widget.setRowCount(2)
+#         self.table_widget.setColumnCount(2)
+#         self.table_widget.setHorizontalHeaderLabels(["Результат", "Количество"])
 #
-#         self.decision_label = QtWidgets.QLabel(self)
-#         self.decision_label.setText(f"Решение: {decision}")
-#         layout.addWidget(self.decision_label)
+#         self.table_widget.setItem(0, 0, QtWidgets.QTableWidgetItem("Принятые гипотезы"))
+#         self.table_widget.setItem(0, 1, QtWidgets.QTableWidgetItem(str(accepted_count)))
+#
+#         self.table_widget.setItem(1, 0, QtWidgets.QTableWidgetItem("Отклоненные гипотезы"))
+#         self.table_widget.setItem(1, 1, QtWidgets.QTableWidgetItem(str(rejected_count)))
+#
+#         layout.addWidget(self.table_widget)
 #
 #         self.setLayout(layout)
 
-
 class ResultWindowN3(QtWidgets.QWidget):
-    def __init__(self, accepted_count, rejected_count):
+    def __init__(self, accepted_num, rejected_num, alpha, check_num, f_values, outputs):
         super().__init__()
         self.setWindowTitle("Проверка гипотезы")
-        self.setGeometry(100, 100, 400, 300)
+        self.setGeometry(100, 100, 600, 400)
 
         layout = QtWidgets.QVBoxLayout(self)
 
-        # self.r0_label = QtWidgets.QLabel(self)
-        # self.r0_label.setText(f"Значение статистики R0: {r0:.4f}")
-        # layout.addWidget(self.r0_label)
-        #
-        # self.chi2_label = QtWidgets.QLabel(self)
-        # self.chi2_label.setText(f"Критическое значение χ²({df}, {alpha:.2f}): {chi2_critical:.4f}")
-        # layout.addWidget(self.chi2_label)
+        alpha_label = QtWidgets.QLabel(self)
+        alpha_label.setText(f"Уровень значимости (alpha): {alpha:.2f}")
+        layout.addWidget(alpha_label)
 
-        self.table_widget = QtWidgets.QTableWidget(self)
-        self.table_widget.setRowCount(2)
-        self.table_widget.setColumnCount(2)
-        self.table_widget.setHorizontalHeaderLabels(["Результат", "Количество"])
+        check_num_label = QtWidgets.QLabel(self)
+        check_num_label.setText(f"Количество проверок гипотезы: {check_num}")
+        layout.addWidget(check_num_label)
 
-        self.table_widget.setItem(0, 0, QtWidgets.QTableWidgetItem("Принятые гипотезы"))
-        self.table_widget.setItem(0, 1, QtWidgets.QTableWidgetItem(str(accepted_count)))
+        result_table = QtWidgets.QTableWidget(self)
+        result_table.setRowCount(len(f_values))
+        result_table.setColumnCount(2)
+        result_table.setHorizontalHeaderLabels(["F_(R0)", "Решение"])
+        result_table.setColumnWidth(1, 200)
+        result_table.setFixedHeight(500)
 
-        self.table_widget.setItem(1, 0, QtWidgets.QTableWidgetItem("Отклоненные гипотезы"))
-        self.table_widget.setItem(1, 1, QtWidgets.QTableWidgetItem(str(rejected_count)))
+        for i, (f_value, output) in enumerate(zip(f_values, outputs)):
+            result_table.setItem(i, 0, QtWidgets.QTableWidgetItem(f"{f_value:.4f}"))
+            result_table.setItem(i, 1, QtWidgets.QTableWidgetItem(output))
 
-        layout.addWidget(self.table_widget)
+        layout.addWidget(result_table)
+
+        summary_table = QtWidgets.QTableWidget(self)
+        summary_table.setRowCount(2)
+        summary_table.setColumnCount(2)
+        summary_table.setHorizontalHeaderLabels(["Результат", "Количество"])
+        summary_table.setFixedHeight(100)
+
+        summary_table.setItem(0, 0, QtWidgets.QTableWidgetItem("Принятые гипотезы"))
+        summary_table.setItem(0, 1, QtWidgets.QTableWidgetItem(str(accepted_num)))
+
+        summary_table.setItem(1, 0, QtWidgets.QTableWidgetItem("Отклоненные гипотезы"))
+        summary_table.setItem(1, 1, QtWidgets.QTableWidgetItem(str(rejected_num)))
+
+        layout.addWidget(summary_table)
 
         self.setLayout(layout)

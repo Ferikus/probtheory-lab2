@@ -9,14 +9,13 @@
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys
-import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import norm
-from scipy.stats import chi2
 
 import src.device as device
 from src.stat_properties import *
 from src.result_windows import *
+from src.chi_squared_test import *
 
 
 class Ui_MainWindow(object):
@@ -181,23 +180,23 @@ class Ui_MainWindow(object):
             variance_theoretical = device_instance.get_variance()
             std_dev_theoretical = variance_theoretical ** 0.5
 
-            # --- Графики и расхождение D ---
+            # Расхождение D (по теореме Гливенко-Кантелли)
+            for i in range(len(draw)):
+                d = max(abs((norm.cdf(draw[i], loc=mean_theoretical, scale=std_dev_theoretical) - i / experiments_count)),
+                        abs((norm.cdf(draw[i], loc=mean_theoretical, scale=std_dev_theoretical) - (i + 1) / experiments_count)))
 
-            # Выборочная функция распределения Fn^
-            extension = 5.
+            # --- Построение графиков ---
 
+            # Границы по x по правилу 3 * sigma
             xmin = mean_theoretical - 3 * std_dev_theoretical
             xmax = mean_theoretical + 3 * std_dev_theoretical
 
-            # x_values_sample = [0.] + draw
             x_values_sample = [xmin] + draw
             y_values_sample = [sum(1 for r in draw if r <= x) / len(draw) for x in x_values_sample]
-            # x_values_sample.append(draw[-1] + extension)
             x_values_sample.append(xmax)
             y_values_sample.append(1.0)
 
             # Теоретическая функция распределения Fn
-            # x_theoretical = np.linspace(min(draw), max(draw), 100)
             x_theoretical = np.linspace(xmin, xmax, 100)
             y_theoretical = norm.cdf(x_theoretical, loc=mean_theoretical, scale=std_dev_theoretical)
 
@@ -211,16 +210,7 @@ class Ui_MainWindow(object):
             plt.title('Функции распределения')
             plt.grid(True)
 
-            # Расхождение D (по теореме Гливенко-Кантелли)
-            y_values_theoretical = norm.cdf(x_values_sample, loc=mean_theoretical, scale=std_dev_theoretical)
-            # d = max(abs(y_t - y_s) for y_t, y_s in zip(y_values_theoretical, y_values_sample))
-            for i in range(len(draw)):
-                d = max(abs((norm.cdf(draw[i], loc=mean_theoretical, scale=std_dev_theoretical) - i / experiments_count)),
-                        abs((norm.cdf(draw[i], loc=mean_theoretical, scale=std_dev_theoretical) - (i + 1) / experiments_count)))
-                print(x_values_sample[i], y_values_sample[i], y_values_sample[i+1])
-            # print(*zip(y_values_theoretical, y_values_sample))
-
-            # --- Создание словаря характеристик ---
+            # --- Характеристики для таблицы ---
             characteristics = {
                 "Eη": mean_theoretical,                                     # теоретическое среднее
                 "x_": mean_sample,                                          # выборочное среднее
@@ -232,7 +222,6 @@ class Ui_MainWindow(object):
                 "R": range_val,                                             # размах
             }
 
-            # --- Создание и отображение таблицы результатов ---
             self.result_window = ResultWindowN2(draw, characteristics, d)
             self.result_window.show()
 
@@ -243,7 +232,6 @@ class Ui_MainWindow(object):
 
     def n2_intervals_table(self):
         try:
-            # --- Get necessary parameters from GUI ---
             sub_device_count = int(self.lineEdit_subdevice_count.text())
             expected = float(self.lineEdit_mean.text())
             variance = float(self.lineEdit_variance.text())
@@ -255,22 +243,12 @@ class Ui_MainWindow(object):
             variance_theoretical = device_instance.get_variance()
             std_dev_theoretical = variance_theoretical ** 0.5
 
-            # Ввод количества интервалов
             k, ok = QtWidgets.QInputDialog.getInt(MainWindow, "Ввод интервалов", f"Введите количество интервалов:")
             if not ok:
                 raise ValueError("Ввод интервалов отменен.")
 
             interval_bounds = [0.]
-            # interval_bounds = []
 
-            # Ввод интервалов пользователем
-            # for i in range(k):
-            #     bound, ok = QtWidgets.QInputDialog.getDouble(MainWindow, "Ввод интервалов", f"Введите границу интервала {i}:")
-            #     if not ok:
-            #         raise ValueError("Ввод интервалов отменен.")
-            #     interval_bounds.append(bound)
-
-            # Автоматическое заполнение равномерными интервалами
             interval_len = (draw[-1] - draw[0]) / k
             for i in range(k):
                 interval_bounds.append(draw[0] + i * interval_len)
@@ -279,6 +257,7 @@ class Ui_MainWindow(object):
             heights = []
             theoretical_densities = []
 
+            # --- Заполнение таблицы ---
             for j in range(k):
                 n = sum(1 for x in draw if interval_bounds[j] <= x < interval_bounds[j + 1])
                 height = n / (experiments_count * (interval_bounds[j + 1] - interval_bounds[j]))
@@ -291,7 +270,6 @@ class Ui_MainWindow(object):
 
             max_height = max(heights)
 
-            # --- Словарь для таблицы ---
             table_info = {
                 "z_k": z_values,                    # средняя точка интервала z
                 "f_η(z_k)": theoretical_densities,  # значение ф-ции плотности в точке z
@@ -301,7 +279,7 @@ class Ui_MainWindow(object):
             self.result_window = ResultWindowN2_2(table_info, interval_bounds, max_height)
             self.result_window.show()
 
-            # --- Гистограмма ---
+            # --- Построение гистограммы ---
             plt.figure(figsize=(8, 6))
             plt.bar(interval_bounds[1:], heights, width=interval_len, align='center', edgecolor='black')
             plt.xlabel('Значение x')
@@ -318,29 +296,20 @@ class Ui_MainWindow(object):
             sub_device_count = int(self.lineEdit_subdevice_count.text())
             expected = float(self.lineEdit_mean.text())
             variance = float(self.lineEdit_variance.text())
-            experiments_count = int(self.lineEdit_experiments_count.text())
 
             device_instance = device.Device(sub_device_count, expected, variance)
-            draw = device_instance.random_draw(experiments_count)
 
             mean_theoretical = device_instance.get_mean()
             variance_theoretical = device_instance.get_variance()
             std_dev_theoretical = variance_theoretical ** 0.5
 
-            accepted_count = 0
-            rejected_count = 0
-
-            k, ok = QtWidgets.QInputDialog.getInt(MainWindow, "Ввод интервалов", f"Введите количество интервалов:")
+            intervals_num, ok = QtWidgets.QInputDialog.getInt(MainWindow, "Ввод интервалов",
+                                                              f"Введите количество интервалов:")
             if not ok:
                 raise ValueError("Ввод интервалов отменен.")
 
-            interval_bounds = [0.]
-            interval_len = (draw[-1] - draw[0]) / k
-            for i in range(k):
-                interval_bounds.append(draw[0] + i * interval_len)
-
-            hypothesis_count, ok = QtWidgets.QInputDialog.getInt(MainWindow, "Ввод числа проверок",
-                                                                 f"Введите число проверок гипотезы:")
+            check_num, ok = QtWidgets.QInputDialog.getInt(MainWindow, "Ввод количества проверок",
+                                                          f"Введите количество проверок гипотезы:")
             if not ok:
                 raise ValueError("Ввод числа проверок отменен.")
 
@@ -349,39 +318,25 @@ class Ui_MainWindow(object):
             if not ok:
                 raise ValueError("Ввод уровня значимости отменен.")
 
-            for i in range(hypothesis_count):
-                # n_values = []
-                # q_values = []
-                r0 = 0
+            f_values = []
+            outputs = []
+            error_type_1_num = 0
+            for _ in range(check_num):
+                device_work_times = np.random.normal(loc=mean_theoretical, scale=std_dev_theoretical, size=1000)
+                interval_probabilities, chi2_statistic, f_value, output = chi_squared_test(intervals_num,
+                                                                                            device_work_times,
+                                                                                            mean_theoretical,
+                                                                                            variance_theoretical,
+                                                                                            alpha)
+                f_values.append(f_value)
+                outputs.append(output)
 
-                for j in range(k):
-                    n = sum(1 for x in draw if interval_bounds[j] <= x < interval_bounds[j + 1])
+                if f_value <= alpha:
+                    error_type_1_num += 1
 
-                    q = norm.cdf(interval_bounds[j + 1], loc=mean_theoretical, scale=std_dev_theoretical) - \
-                        norm.cdf(interval_bounds[j], loc=mean_theoretical, scale=std_dev_theoretical)
-
-                    r0 += (n - experiments_count * q) ** 2 / (experiments_count * q)
-
-                p_value = 1 - chi2.cdf(r0, k - 1)
-
-                if p_value < alpha:
-                    print("Гипотеза H0 принимается")
-                    accepted_count += 1
-                else:
-                    print("Гипотеза H0 отклоняется")
-                    rejected_count += 1
-
-                # r0 - chi2_statistuc
-                # chi2_statistic = np.sum((hist_values - expected_frequencies) ** 2 / expected_frequencies)
-                # degrees_of_freedom = num_intervals - 1  # k - p - 1
-                # p_value = 1 - st.chi2.cdf(chi2_statistic, degrees_of_freedom)
-                #
-                # if p_value <= alpha:
-                #     message = "Гипотеза отвергается"  # Reject the null hypothesis
-                # else:
-                #     message = "Гипотеза не отвергается"  # Fail to reject the null hypothesis
-
-            self.result_window = ResultWindowN3(accepted_count, rejected_count)
+            accepted_num = check_num - error_type_1_num
+            rejected_num = error_type_1_num
+            self.result_window = ResultWindowN3(accepted_num, rejected_num, alpha, check_num, f_values, outputs)
             self.result_window.show()
 
         except Exception as e:
